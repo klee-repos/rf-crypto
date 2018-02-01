@@ -41,31 +41,30 @@ Historical.findOne({type:'latest'}).then(function(latest) {
 	}
 })
 
+var reviewOrder = function(historical, price, filledOrder, crypto) {
+	historical[crypto] = price
+	console.log(crypto + ' price updated to ' + historical[crypto])
+	Orders.checkAlerts(filledOrder).then(function(found) {
+		if (found) {
+			console.log('price alert:' + filledOrder.product_id + " at " + price)
+		}
+	})
+	historical.save()
+}
+
+
 // GDAX websocket
 GDAXSocket.on('message', function(newOrder) {
 	Orders.filledOrder(newOrder).then(function(filledOrder) {
-		Historical.findOne({type:'latest'}).then(function(latest) {
+		Historical.findOne({type:'latest'}).then(function(historical) {
 			let price = parseFloat(Math.round(filledOrder.price * 100) / 100).toFixed(2);
-			if(latest) {
+			if(historical) {
 				if (filledOrder.product_id === 'ETH-USD') {
-					latest.ethUSD = price
-					console.log('Ether price updated to ' + latest.ethUSD)
-					Orders.checkAlerts(filledOrder).then(function(found) {
-						if (found) {
-							console.log('price alert:' + filledOrder.product_id + " at " + price)
-						}
-					})
+					reviewOrder(historical, price, filledOrder, 'ethUSD')
 				}
 				if (filledOrder.product_id === 'BTC-USD') {
-					latest.btcUSD = price
-					console.log('Bitcoin price updated to ' + latest.btcUSD)
-					Orders.checkAlerts(filledOrder).then(function(found) {
-						if (found) {
-							console.log('price alert:' + filledOrder.product_id + " at " + price)
-						}
-					})
+					reviewOrder(historical, price, filledOrder, 'btcUSD')
 				}
-				latest.save()
 			}
 		})
 	})
